@@ -5,14 +5,56 @@ import Papa from "papaparse";
 export default function Upload() {
   const [columns, setColumns] = useState<string[]>([]);
   const [error, setError] = useState<string>("");
+  const [sampleData, setSampleData] = useState<string[]>([]);
   const [mappings, setMappings] = useState({
     name: "",
     email: "",
     phone: "",
     username: "",
   });
+  const [validationErrors, setValidationErrors] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    username: "",
+  });
+
+  const validateField = (field: string, value: string) => {
+    const columnIndex = columns.indexOf(value);
+    const sampleValue = sampleData[columnIndex];
+
+    switch (field) {
+      case "name":
+        if (!/^[a-zA-Z\s]*$/.test(sampleValue)) {
+          return "Invalid name format";
+        }
+        break;
+      case "email":
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sampleValue)) {
+          return "Invalid email format";
+        }
+        break;
+      case "phone":
+        if (!/^\+?[\d\s-()]*$/.test(sampleValue)) {
+          return "Invalid phone number format";
+        }
+        break;
+      case "username":
+        if (!/^[a-zA-Z0-9_]*$/.test(sampleValue)) {
+          return "Invalid username format";
+        }
+        break;
+    }
+    return "";
+  };
 
   const handleMappingChange = (field: string, value: string) => {
+    const validationError = validateField(field, value);
+
+    setValidationErrors((prev) => ({
+      ...prev,
+      [field]: validationError,
+    }));
     setMappings((prev) => ({
       ...prev,
       [field]: value,
@@ -21,6 +63,14 @@ export default function Upload() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const hasErrors = Object.values(validationErrors).some(
+      (error) => error !== "",
+    );
+    if (hasErrors) {
+      alert("Please fix validation errors before submitting");
+      return;
+    }
+
     console.log("Mappings:", mappings);
   };
 
@@ -38,7 +88,9 @@ export default function Upload() {
         complete: (results) => {
           if (results.data && results.data.length > 0) {
             const headers = results.data[0] as string[];
+            const secondRow = results.data[1] as string[];
             setColumns(headers);
+            setSampleData(secondRow);
           }
         },
         header: false,
@@ -75,79 +127,34 @@ export default function Upload() {
         {columns.length > 0 && (
           <form onSubmit={handleSubmit} className="mt-6">
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Name
-                </label>
-                <select
-                  value={mappings.name}
-                  onChange={(e) => handleMappingChange("name", e.target.value)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                >
-                  <option value="">Select column</option>
-                  {columns.map((column, index) => (
-                    <option key={index} value={column}>
-                      {column}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Email
-                </label>
-                <select
-                  value={mappings.email}
-                  onChange={(e) => handleMappingChange("email", e.target.value)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                >
-                  <option value="">Select column</option>
-                  {columns.map((column, index) => (
-                    <option key={index} value={column}>
-                      {column}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Phone Number
-                </label>
-                <select
-                  value={mappings.phone}
-                  onChange={(e) => handleMappingChange("phone", e.target.value)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                >
-                  <option value="">Select column</option>
-                  {columns.map((column, index) => (
-                    <option key={index} value={column}>
-                      {column}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Username
-                </label>
-                <select
-                  value={mappings.username}
-                  onChange={(e) =>
-                    handleMappingChange("username", e.target.value)
-                  }
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                >
-                  <option value="">Select column</option>
-                  {columns.map((column, index) => (
-                    <option key={index} value={column}>
-                      {column}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {Object.entries(mappings).map(([field, value]) => (
+                <div key={field}>
+                  <label className="block text-sm font-medium text-gray-700">
+                    {field.charAt(0).toUpperCase() + field.slice(1)}
+                  </label>
+                  <select
+                    value={value}
+                    onChange={(e) => handleMappingChange(field, e.target.value)}
+                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                      validationErrors[field as keyof typeof validationErrors]
+                        ? "border-red-500"
+                        : ""
+                    }`}
+                  >
+                    <option value="">Select column</option>
+                    {columns.map((column, index) => (
+                      <option key={index} value={column}>
+                        {column}
+                      </option>
+                    ))}
+                  </select>
+                  {validationErrors[field as keyof typeof validationErrors] && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {validationErrors[field as keyof typeof validationErrors]}
+                    </p>
+                  )}
+                </div>
+              ))}
 
               <button
                 type="submit"
